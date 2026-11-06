@@ -10,8 +10,8 @@
 <title>數獨解題</title>
 <style>
 /* 想改顏色：改這裡的色碼就好（上面是淺色模式，下面 dark 那行是深色模式） */
-:root{--bg:#f1f2f4;--fg:#2b303a;--card:#fff;--line:#b5bac4;--thick:#2b303a;--btn:#456aa3;--sol:#456aa3;--sel:#dfe7f5;--low:#f3deb0;--hint:#cfe8da;--bad:#c0444f}
-@media(prefers-color-scheme:dark){:root{--bg:#15181e;--fg:#dfe3ea;--card:#1e222a;--line:#3d4452;--thick:#9aa3b2;--btn:#3b5683;--sol:#8ea8d2;--sel:#2a3650;--low:#5a4a2a;--hint:#27483b;--bad:#e08a92}
+:root{--bg:#f1f2f4;--fg:#2b303a;--card:#fff;--line:#b5bac4;--thick:#2b303a;--btn:#456aa3;--sol:#456aa3;--sel:#dfe7f5;--low:#f3deb0;--hint:#cfe8da;--bad:#c0444f;--given:#e7e9ee;--peer:#e9eef7;--same:#f5e6a8}
+@media(prefers-color-scheme:dark){:root{--bg:#15181e;--fg:#dfe3ea;--card:#1e222a;--line:#3d4452;--thick:#9aa3b2;--btn:#3b5683;--sol:#8ea8d2;--sel:#2a3650;--low:#5a4a2a;--hint:#27483b;--bad:#e08a92;--given:#2a2f3a;--peer:#222a38;--same:#6b5a2a}
 #prev{filter:brightness(.82)}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.5 system-ui,-apple-system,"Noto Sans TC",sans-serif;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
@@ -27,25 +27,34 @@ button.p{background:var(--btn);color:#fff;box-shadow:none}
 #grid{display:grid;grid-template-columns:repeat(9,1fr);width:100%;aspect-ratio:1;background:var(--card);border:2px solid var(--thick)}
 .c{display:flex;align-items:center;justify-content:center;font-size:clamp(18px,6vw,30px);border:.5px solid var(--line);user-select:none}
 .r3{border-right:2px solid var(--thick)}.b3{border-bottom:2px solid var(--thick)}
-.sel{background:var(--sel)}.low{background:var(--low)}.bad{color:var(--bad);font-weight:700}.sol{color:var(--sol)}.hint{background:var(--hint)}
-#hist{background:var(--card);border-radius:12px;padding:8px 12px}#hist .h{display:flex;gap:8px;align-items:center;padding:6px 0}#hist .h span{flex:1}
+.g{background:var(--given);font-weight:700}.ent{color:var(--sol)}.peer{background:var(--peer)}.g.peer{background:var(--given);box-shadow:inset 0 0 0 100px #4a6ea81a}
+.same{background:var(--same);font-weight:700}.dim{opacity:.35}.hint{background:var(--hint)}.low{background:var(--low)}.bad{color:var(--bad);font-weight:700}.sel{background:var(--sel)}
+.seg{display:flex;margin:10px 0 0;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--line) inset}.seg button{flex:1;border-radius:0;box-shadow:none;background:transparent}
+.seg button.on,#pad button.on{background:var(--btn);color:#fff}
+#recs{background:var(--card);border-radius:12px;padding:10px 12px;margin-top:10px}
+#recs select{font:inherit;font-size:17px;min-height:46px;border-radius:12px;padding:0 10px;background:var(--bg);color:var(--fg);border:1px solid var(--line)}
+#rl{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.rc{display:flex;flex-direction:column;gap:6px;background:var(--bg);border-radius:10px;padding:8px}
+.rc img{width:100%;border-radius:6px}.rc .nm{font-weight:600;word-break:break-all}
+.st.ok{color:#5aa77a}.st.check{color:#d6a24a}.st.new{opacity:.7}.rc button{min-height:40px;padding:8px}
 </style>
 </head>
 <body>
 <main>
 <h1>數獨解題</h1>
-<div class="row"><button class="p" id="pick">選擇截圖</button><button class="p" id="camBtn">拍照</button><button id="manual">手動框選</button><input id="file" type="file" accept="image/*" hidden><input id="cam" type="file" accept="image/*" capture="environment" hidden></div>
+<div class="row"><button class="p" id="pick">選擇截圖</button><button class="p" id="camBtn">拍照</button><button id="manual">手動框選</button><input id="file" type="file" accept="image/*" multiple hidden><input id="cam" type="file" accept="image/*" capture="environment" hidden></div>
 <div id="msg">選一張數獨截圖，或在相簿用「分享」傳進來。</div>
 <canvas id="prev" hidden></canvas>
 <div id="grid"></div>
+<div class="seg"><button id="mIn" class="on">輸入</button><button id="mHl">突顯數字</button></div>
 <div class="row" id="pad"></div>
 <div class="row"><button class="p" id="solve">解題</button><button id="hintBtn">提示</button><button id="copy">複製</button><button id="clr">清除解答</button><button id="rst">全部清空</button><button id="histBtn">紀錄</button></div>
-<div id="hist" hidden></div>
+<div id="recs" hidden><div class="row"><select id="sort"><option value="u">最新</option><option value="n">名稱</option><option value="s">狀態</option></select><button id="exp">匯出</button><button id="imp">匯入</button><input id="impf" type="file" accept=".json,application/json" hidden></div><div id="rl"></div></div>
 </main>
 <script src="vendor/tesseract.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';document.head.append(s)"></script>
 <script>
 const $=s=>document.querySelector(s), msg=t=>$('#msg').textContent=t;
-let v=Array(81).fill(0), hint=-1, solved=null, low=new Set(), sel=-1, worker=null;
+let v=Array(81).fill(0), hint=-1, solved=null, fx=new Set(), hl=0, mode='in', low=new Set(), sel=-1, worker=null;
 
 /* ---------- 解題 ---------- */
 const units=[];
@@ -90,30 +99,41 @@ function solve(b){
 
 /* ---------- 介面 ---------- */
 function render(){
-  const bad=conflicts(v),g=$('#grid'); g.innerHTML='';
+  const bad=conflicts(v),g=$('#grid');g.innerHTML='';
+  const sr=sel>=0?sel/9|0:-1,sc=sel>=0?sel%9:-1,sv=sel>=0?(v[sel]||(solved?solved[sel]:0)):0,eff=hl||sv,dim=!!solved;
   for(let i=0;i<81;i++){
-    const r=i/9|0,c=i%9,d=document.createElement('div');
-    d.className='c'+(c%3==2&&c<8?' r3':'')+(r%3==2&&r<8?' b3':'')+(i==sel?' sel':'')+(i==hint?' hint':'')+
-      (low.has(i)?' low':'')+(bad.has(i)?' bad':'')+(!v[i]&&solved?' sol':'');
-    d.textContent=v[i]||(solved?solved[i]:'');
+    const r=i/9|0,c=i%9,d=document.createElement('div'),own=v[i],val=own||(solved?solved[i]:0);
+    const given=own&&fx.has(i),match=eff&&val===eff;
+    const peer=sel>=0&&(r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)));
+    d.className='c'+(c%3==2&&c<8?' r3':'')+(r%3==2&&r<8?' b3':'')+(given?' g':val?' ent':'')+(peer?' peer':'')+
+      (match&&!(dim&&given)?' same':'')+(dim&&eff&&val&&!match?' dim':'')+(i==hint?' hint':'')+(low.has(i)?' low':'')+(bad.has(i)?' bad':'')+(i==sel?' sel':'');
+    d.textContent=val||'';
     d.onclick=()=>{sel=i;render()};
     g.append(d);
   }
 }
-for(let n=1;n<=9;n++){const b=document.createElement('button');b.textContent=n;b.onclick=()=>setCell(n);$('#pad').append(b)}
-const del=document.createElement('button');del.textContent='⌫';del.onclick=()=>setCell(0);$('#pad').append(del);
-function setCell(n){if(sel<0)return;v[sel]=n;low.delete(sel);solved=null;render()}
-$('#solve').onclick=()=>{
-  const bad=conflicts(v); if(bad.size){msg('有重複的數字（紅色），請先修正');return}
-  const key=v.join(''),r=solve(v);
+const pb=[];
+for(let n=1;n<=9;n++){const b=document.createElement('button');b.textContent=n;
+  b.onclick=()=>{if(mode==='hl'){hl=hl===n?0:n;sync();render()}else setCell(n)};pb.push(b);$('#pad').append(b)}
+const pl=document.createElement('button');$('#pad').append(pl);
+pl.onclick=()=>{if(mode==='hl'){hl=0;sync();render()}else setCell(0)};
+function sync(){pl.textContent=mode==='hl'?'全部':'⌫';pb.forEach((b,i)=>b.classList.toggle('on',mode==='hl'&&hl===i+1))}
+function setMode(m){mode=m;if(m==='in')hl=0;$('#mIn').classList.toggle('on',m==='in');$('#mHl').classList.toggle('on',m==='hl');sync()}
+$('#mIn').onclick=()=>{setMode('in');render()};$('#mHl').onclick=()=>setMode('hl');
+function setCell(n){if(sel<0)return;v[sel]=n;n?fx.add(sel):fx.delete(sel);low.delete(sel);solved=null;render()}
+$('#solve').onclick=async()=>{
+  if(conflicts(v).size){msg('有重複的數字（紅色），請先修正');return}
+  const r=solve(v);
   if(!r.n){msg('無解，請檢查辨識錯誤的格子（橘色是不確定的）');return}
-  solved=r.sol;hint=-1;msg(r.n>1?'有多組解（題目數字可能不完整），先顯示其中一組':'解出來了！藍色是解答');saveHist(key);render();
+  solved=r.sol;hint=-1;setMode('hl');
+  msg(r.n>1?'有多組解（題目數字可能不完整），先顯示其中一組':'解出來了！藍色是解答，點下方數字可以標出同一個數字');
+  render();await saveRec(givenStr(),r.sol.join(''),r.n===1?'ok':'check');
 };
 $('#clr').onclick=()=>{solved=null;hint=-1;render()};
-$('#rst').onclick=()=>{v.fill(0);solved=null;low.clear();sel=-1;hint=-1;$('#prev').hidden=true;msg('');render()};
+$('#rst').onclick=()=>{v.fill(0);solved=null;low.clear();sel=-1;hint=-1;fx=new Set();setMode('in');$('#prev').hidden=true;msg('');render()};
 $('#pick').onclick=()=>$('#file').click();
 $('#camBtn').onclick=()=>$('#cam').click();
-for(const id of ['#file','#cam'])$(id).onchange=e=>{const f=e.target.files[0];e.target.value='';f&&loadBlob(f)};
+for(const id of ['#file','#cam'])$(id).onchange=e=>{const fs=[...e.target.files];e.target.value='';if(fs.length>1)batch(fs);else if(fs[0])loadBlob(fs[0])};
 addEventListener('paste',e=>{const f=e.clipboardData&&e.clipboardData.files[0];if(f)loadBlob(f)});
 
 /* 提示：先找「只剩一個數字能填」的格子，再找「這個數字在某列/行/宮只有一處能放」，都沒有才直接給答案 */
@@ -139,27 +159,99 @@ $('#copy').onclick=async()=>{
   try{await navigator.clipboard.writeText(t);msg('已複製'+(solved?'解答':'目前盤面'))}catch(e){msg('這個瀏覽器不讓我複製')}
 };
 
-/* 紀錄：存在這支裝置的瀏覽器裡 */
-const HK='sudoku-history';
-function getHist(){try{return JSON.parse(localStorage.getItem(HK))||[]}catch(e){return[]}}
-function putHist(l){try{localStorage.setItem(HK,JSON.stringify(l.slice(0,30)))}catch(e){}}
-function saveHist(key){
-  if(key.replace(/0/g,'').length<17)return;
-  putHist([{k:key,t:Date.now()},...getHist().filter(h=>h.k!==key)]);
-  if(!$('#hist').hidden)showHist();
+/* 紀錄：存在這個裝置的 IndexedDB（沒有筆數限制，可存縮圖） */
+const DB=new Promise((res,rej)=>{
+  const q=indexedDB.open('sudoku',1);
+  q.onupgradeneeded=()=>{q.result.createObjectStore('puzzles',{keyPath:'id'}).createIndex('given','given')};
+  q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);
+});
+DB.catch(()=>{});
+const tx=async(mode,fn)=>{const t=(await DB).transaction('puzzles',mode);let out;const r=fn(t.objectStore('puzzles'));
+  return new Promise((res,rej)=>{if(r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=t.onabort=()=>rej(t.error)})};
+const dbAll=()=>tx('readonly',s=>s.getAll()),dbPut=r=>tx('readwrite',s=>s.put(r)),dbDel=id=>tx('readwrite',s=>s.delete(id)),dbByGiven=g=>tx('readonly',s=>s.index('given').get(g));
+const fmt=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`};
+const ST={ok:'✓ 已解',check:'⚠ 請核對',new:'未解'};
+const givenStr=()=>v.map((d,i)=>fx.has(i)?d:0).join('');
+function thumb(g,s){
+  const c=document.createElement('canvas');c.width=c.height=150;const x=c.getContext('2d'),u=150/9;
+  x.fillStyle='#fff';x.fillRect(0,0,150,150);x.textAlign='center';x.textBaseline='middle';
+  for(let i=0;i<81;i++){const gd=+g[i],d=gd||+s[i];if(!d)continue;x.font=(gd?'bold ':'')+'13px sans-serif';x.fillStyle=gd?'#222':'#7a9ad0';x.fillText(d,(i%9+.5)*u,((i/9|0)+.5)*u)}
+  x.strokeStyle='#999';for(let i=0;i<=9;i++){x.lineWidth=i%3?.5:1.5;x.beginPath();x.moveTo(i*u,0);x.lineTo(i*u,150);x.moveTo(0,i*u);x.lineTo(150,i*u);x.stroke()}
+  return c.toDataURL('image/png');
 }
-function showHist(){
-  const box=$('#hist'),l=getHist();box.hidden=false;box.textContent=l.length?'':'還沒有紀錄。解題後會自動存在這個裝置上。';
-  for(const h of l){
-    const d=document.createElement('div'),sp=document.createElement('span'),a=document.createElement('button'),b=document.createElement('button');
-    d.className='h';sp.textContent=new Date(h.t).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+` · ${h.k.replace(/0/g,'').length} 格`;
-    a.textContent='載入';b.textContent='刪除';
-    a.onclick=()=>{v=[...h.k].map(Number);solved=null;low.clear();hint=-1;sel=-1;render();box.hidden=true;msg('已載入紀錄')};
-    b.onclick=()=>{putHist(getHist().filter(x=>x.k!==h.k));showHist()};
-    d.append(sp,a,b);box.append(d);
+async function saveRec(given,sol,status,name){
+  try{
+    const old=await dbByGiven(given),now=Date.now();
+    await dbPut({id:old?old.id:now+'-'+Math.random().toString(36).slice(2,6),given,sol,status,name:name||(old&&old.name)||fmt(now),t:old?old.t:now,u:now,thumb:thumb(given,sol)});
+  }catch(e){msg('紀錄存不了（這個瀏覽器不允許儲存）')}
+}
+async function showRecs(){
+  const box=$('#recs'),list=$('#rl');box.hidden=false;
+  let rs;try{rs=await dbAll()}catch(e){list.textContent='這個瀏覽器不能存紀錄';return}
+  const k=$('#sort').value;
+  rs.sort(k==='n'?(a,b)=>a.name.localeCompare(b.name,'zh-TW',{numeric:true}):k==='s'?(a,b)=>a.status<b.status?-1:a.status>b.status?1:b.u-a.u:(a,b)=>b.u-a.u);
+  list.textContent=rs.length?'':'還沒有紀錄。解題後會自動存在這個裝置上。';
+  for(const h of rs){
+    const d=document.createElement('div'),im=new Image(),nm=document.createElement('div'),st=document.createElement('div'),b1=document.createElement('button'),b2=document.createElement('button');
+    d.className='rc';im.src=h.thumb;im.onclick=()=>openRec(h);
+    nm.className='nm';nm.textContent=h.name;
+    nm.onclick=async()=>{const n=prompt('名稱',h.name);if(n&&n.trim()){h.name=n.trim().slice(0,60);await dbPut(h);showRecs()}};
+    st.className='st '+h.status;st.textContent=ST[h.status]||'';
+    b1.textContent='載入';b1.onclick=()=>openRec(h);
+    b2.textContent='刪除';b2.onclick=async()=>{if(confirm('刪除「'+h.name+'」？')){await dbDel(h.id);showRecs()}};
+    d.append(im,nm,st,b1,b2);list.append(d);
   }
 }
-$('#histBtn').onclick=()=>$('#hist').hidden?showHist():($('#hist').hidden=true);
+function openRec(h){
+  v=[...h.given].map(Number);fx=new Set(v.flatMap((d,i)=>d?[i]:[]));solved=h.sol?[...h.sol].map(Number):null;
+  low.clear();hint=-1;sel=-1;$('#recs').hidden=true;setMode(solved?'hl':'in');render();
+  msg(`已載入「${h.name}」`+(solved?'，答案也在裡面了':'，按「解題」可以算出答案'));
+}
+$('#histBtn').onclick=()=>$('#recs').hidden?showRecs():($('#recs').hidden=true);
+$('#sort').onchange=showRecs;
+$('#exp').onclick=async()=>{
+  try{
+    const rs=await dbAll(),a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'sudoku',v:1,records:rs})],{type:'application/json'}));
+    a.download=`sudoku-records-${new Date().toISOString().slice(0,10)}.json`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);msg(`已匯出 ${rs.length} 筆紀錄`);
+  }catch(e){msg('匯出失敗')}
+};
+$('#imp').onclick=()=>$('#impf').click();
+$('#impf').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const rs=(JSON.parse(await f.text()).records||[]).filter(r=>r&&/^[0-9]{81}$/.test(r.given));let n=0;
+    for(const r of rs){
+      if(await dbByGiven(r.given))continue;
+      r.id=String(r.id||Date.now()+'-'+n);r.name=String(r.name||'匯入').slice(0,60);r.status=ST[r.status]?r.status:'new';
+      r.sol=/^[0-9]{81}$/.test(r.sol)?r.sol:'';r.t=+r.t||Date.now();r.u=+r.u||r.t;
+      if(!/^data:image\//.test(r.thumb||''))r.thumb=thumb(r.given,r.sol);
+      await dbPut(r);n++;
+    }
+    msg(`匯入完成：新增 ${n} 筆，${rs.length-n} 筆已經有了`);showRecs();
+  }catch(e){msg('這個檔案不是正確的備份檔')}
+};
+/* 一次選很多張：自動排隊辨識、解題、存進紀錄 */
+async function batch(fs){
+  let ok=0,chk=0;const fail=[];
+  for(let k=0;k<fs.length;k++){
+    msg(`批次處理 ${k+1}/${fs.length}…（請不要關掉畫面）`);
+    if(!await loadBlob(fs[k],true)){fail.push(fs[k].name);continue}
+    const r=solve(v),g=good();
+    await saveRec(givenStr(),r.n?r.sol.join(''):'',g?'ok':'check',fs[k].name.replace(/\.[^.]+$/,'').slice(0,60));
+    g?ok++:chk++;
+  }
+  msg(`批次完成：${ok} 張成功、${chk} 張需要核對`+(fail.length?`、${fail.length} 張找不到九宮格（${fail.slice(0,3).join('、')}${fail.length>3?'…':''}）`:'')+'。');
+  showRecs();
+}
+(async()=>{   // 把舊版存在 localStorage 的紀錄搬過來
+  try{
+    const old=JSON.parse(localStorage.getItem('sudoku-history')||'[]');
+    for(const h of old)if(/^[0-9]{81}$/.test(h.k)&&!(await dbByGiven(h.k)))await dbPut({id:'o'+h.t,given:h.k,sol:'',status:'new',name:'舊紀錄 '+fmt(h.t),t:h.t,u:h.t,thumb:thumb(h.k,'')});
+    if(old.length)localStorage.removeItem('sudoku-history');
+  }catch(e){}
+})();
 
 /* ---------- 偵測盤面（等距格線擬合） ---------- */
 function prof(g,W,H,vert){
@@ -206,7 +298,7 @@ async function getWorker(){
 }
 function setCanvas(o){const cv=$('#prev');cv.width=o.W;cv.height=o.H;cv.getContext('2d').putImageData(o.base,0,0);cv.hidden=false;img=o;o.tap=[]}
 function drawBase(){$('#prev').getContext('2d').putImageData(img.base,0,0)}
-async function loadBlob(blob){
+async function loadBlob(blob,quiet){
   msg('讀取圖片…');
   const bmp=await createImageBitmap(blob), sc=Math.min(1,1200/Math.max(bmp.width,bmp.height));
   const W=Math.round(bmp.width*sc),H=Math.round(bmp.height*sc),cv=document.createElement('canvas');
@@ -216,8 +308,9 @@ async function loadBlob(blob){
   orig={g,W,H,base};setCanvas(orig);
   msg('尋找九宮格…'); await new Promise(r=>setTimeout(r,30));
   const box=findBoard(g,W,H);
-  if(box)return readBoard(box);
-  msg('沒自動找到九宮格。請在上方圖片依序點九宮格的四個角（順序隨意）。');
+  if(box){await readBoard(box);return true}
+  if(!quiet)msg('沒自動找到九宮格。請在上方圖片依序點九宮格的四個角（順序隨意）。');
+  return false;
 }
 /* 手動框選：點四個角，用透視變換拉正（歪斜的照片也可以） */
 function homography(src,dst){
@@ -282,7 +375,7 @@ function repair(cand){                         // 用解題器反推：換掉不
 }
 async function readBoard(box){
   const{g,W,H}=img;
-  v.fill(0);solved=null;low.clear();sel=-1;hint=-1;render();drawBase();
+  v.fill(0);solved=null;low.clear();sel=-1;hint=-1;fx=new Set();hl=0;render();drawBase();
   const x=$('#prev').getContext('2d');x.strokeStyle='#ef4444';x.lineWidth=Math.max(3,W/200);x.strokeRect(box.x,box.y,box.s*9,box.s*9);
   const w=await getWorker(),cand={},ink=[];
   const t=document.createElement('canvas'),t2=document.createElement('canvas');t2.width=t2.height=72;
@@ -316,11 +409,11 @@ async function readBoard(box){
   const fixed=repair(cand),ok=good();
   msg(`辨識完成，共 ${ink.length} 格有數字。`+(fixed?`已自動修正 ${fixed} 格，`:'')+
     (ok?'盤面檢查通過。':'盤面還有疑慮（數字重複或解不唯一）。')+'橘色是不確定的，點格子再按數字可修正；框歪了或是拍照的圖，可按「手動框選」點四個角。');
-  render();
+  fx=new Set(v.flatMap((d,i)=>d?[i]:[]));setMode('in');render();
 }
 
 /* ---------- 啟動 ---------- */
-render();
+setMode('in');render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 if(location.search.includes('shared')){
   history.replaceState(null,'',location.pathname);
