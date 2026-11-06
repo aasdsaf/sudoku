@@ -174,11 +174,38 @@ $('#prev').onclick=e=>{
   readBoard({x:a,y:b,s});
 };
 $('#manual').onclick=()=>{if(img){img.tap=[];drawBase();msg('請在上方圖片依序點九宮格的左上角和右下角')}};
+async function ocr(w,cv){
+  const cand={},add=(d,c)=>{if(d>='1'&&d<='9'&&!(c<=cand[d]))cand[d]=c};
+  for(const psm of ['10','8','13']){          // 先單字模式，不確定就換模式重讀
+    await w.setParameters({tessedit_pageseg_mode:psm});
+    const r=await w.recognize(cv),t=r.data.text.trim();
+    if(t)add(t[0],r.data.confidence);
+    for(const sy of r.data.symbols||[])for(const ch of sy.choices||[])add(ch.text,ch.confidence);
+    if(Math.max(0,...Object.values(cand))>=75)break;
+  }
+  return Object.entries(cand).sort((a,b)=>b[1]-a[1]).map(([d,c])=>[+d,c]);
+}
+function good(){return !conflicts(v).size&&solve(v).n===1}
+function repair(cand){                         // 用解題器反推：換掉不確定的格子，直到盤面剛好有唯一解
+  if(good())return 0;
+  const cells=[...low].sort((a,b)=>((cand[a]||[])[0]||[0,0])[1]-((cand[b]||[])[0]||[0,0])[1]).slice(0,8);
+  const orig=cells.map(i=>v[i]);
+  const opts=cells.map((i,k)=>{
+    const o=(cand[i]||[]).map(c=>c[0]);
+    if(!orig[k])for(let d=1;d<10;d++)if(!o.includes(d))o.push(d);
+    return o.filter(d=>d!==orig[k]).concat(orig[k]?[0]:[]);
+  });
+  const apply=l=>{cells.forEach((c,k)=>v[c]=orig[k]);for(const[k,d]of l)v[cells[k]]=d};
+  for(let a=0;a<cells.length;a++)for(const da of opts[a]){apply([[a,da]]);if(good())return 1}
+  for(let a=0;a<cells.length;a++)for(let b=a+1;b<cells.length;b++)
+    for(const da of opts[a])for(const db of opts[b]){apply([[a,da],[b,db]]);if(good())return 2}
+  apply([]);return 0;
+}
 async function readBoard(box){
   const{g,W,H}=img;
   v.fill(0);solved=null;low.clear();sel=-1;render();drawBase();
   const x=$('#prev').getContext('2d');x.strokeStyle='#ef4444';x.lineWidth=Math.max(3,W/200);x.strokeRect(box.x,box.y,box.s*9,box.s*9);
-  const w=await getWorker(),cells=[];
+  const w=await getWorker(),cand={},ink=[];
   const t=document.createElement('canvas'),t2=document.createElement('canvas');t2.width=t2.height=72;
   for(let i=0;i<81;i++){
     const r=i/9|0,c=i%9,m=Math.round(box.s*.7),x0=Math.round(box.x+c*box.s+box.s*.15),y0=Math.round(box.y+r*box.s+box.s*.15);
@@ -186,22 +213,31 @@ async function readBoard(box){
     let bg=0,nb=0;
     for(let k=0;k<m;k++){for(const [a,b] of [[k,0],[k,m-1],[0,k],[m-1,k]]){bg+=g[(y0+b)*W+x0+a];nb++}}
     bg/=nb;
-    const bin=new ImageData(m,m);let ink=0;
+    let dmax=0;
+    for(let yy=0;yy<m;yy++)for(let xx=0;xx<m;xx++)dmax=Math.max(dmax,Math.abs(g[(y0+yy)*W+x0+xx]-bg));
+    if(dmax<40)continue;                        // 這格是空的
+    const thr=dmax*.5,bin=new ImageData(m,m);let x1=m,y1=m,x2=-1,y2=-1,n=0;
     for(let yy=0;yy<m;yy++)for(let xx=0;xx<m;xx++){
-      const on=Math.abs(g[(y0+yy)*W+x0+xx]-bg)>70,o=(yy*m+xx)*4;
-      bin.data[o]=bin.data[o+1]=bin.data[o+2]=on?0:255;bin.data[o+3]=255;if(on)ink++;
+      const on=Math.abs(g[(y0+yy)*W+x0+xx]-bg)>thr,o=(yy*m+xx)*4;
+      bin.data[o]=bin.data[o+1]=bin.data[o+2]=on?0:255;bin.data[o+3]=255;
+      if(on){n++;if(xx<x1)x1=xx;if(xx>x2)x2=xx;if(yy<y1)y1=yy;if(yy>y2)y2=yy}
     }
-    if(ink/(m*m)<.03)continue;
+    const bw=x2-x1+1,bh=y2-y1+1;
+    if(n/(m*m)<.02||bh<m*.25)continue;
     t.width=t.height=m;t.getContext('2d').putImageData(bin,0,0);
-    const c2=t2.getContext('2d');c2.fillStyle='#fff';c2.fillRect(0,0,72,72);c2.drawImage(t,12,12,48,48);
-    cells.push([i,await w.recognize(t2)]);
-    msg(`辨識中… ${cells.length}`);
+    const k=44/Math.max(bw,bh),c2=t2.getContext('2d');   // 裁到數字外框、置中、統一大小
+    c2.fillStyle='#fff';c2.fillRect(0,0,72,72);c2.drawImage(t,x1,y1,bw,bh,36-bw*k/2,36-bh*k/2,bw*k,bh*k);
+    ink.push(i);cand[i]=await ocr(w,t2);msg(`辨識中… ${ink.length}`);
   }
-  for(const [i,res] of cells){
-    const d=res.data.text.trim()[0];
-    if(d&&d>='1'&&d<='9'){v[i]=+d;if(res.data.confidence<60)low.add(i)}else low.add(i);
+  for(const i of ink){
+    const c=cand[i];
+    if(c.length)v[i]=c[0][0];
+    if(!c.length||c[0][1]<60)low.add(i);
   }
-  msg(`辨識完成，共 ${cells.length} 格有數字。橘色是不確定的，點格子再按數字可修正。框的位置不對可按「手動框選」重來。`);render();
+  const fixed=repair(cand),ok=good();
+  msg(`辨識完成，共 ${ink.length} 格有數字。`+(fixed?`已自動修正 ${fixed} 格，`:'')+
+    (ok?'盤面檢查通過。':'盤面還有疑慮（數字重複或解不唯一）。')+'橘色是不確定的，點格子再按數字可修正；框歪了可按「手動框選」。');
+  render();
 }
 
 /* ---------- 啟動 ---------- */
