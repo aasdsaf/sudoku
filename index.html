@@ -9,23 +9,26 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>數獨解題</title>
 <style>
-:root{--bg:#f4f5f7;--fg:#1f2937;--card:#fff;--line:#9ca3af;--thick:#1f2937;--acc:#2563eb;--sel:#dbeafe}
-@media(prefers-color-scheme:dark){:root{--bg:#111827;--fg:#f3f4f6;--card:#1f2937;--line:#4b5563;--thick:#d1d5db;--acc:#60a5fa;--sel:#1e3a8a}}
+/* 想改顏色：改這裡的色碼就好（上面是淺色模式，下面 dark 那行是深色模式） */
+:root{--bg:#f1f2f4;--fg:#2b303a;--card:#fff;--line:#b5bac4;--thick:#2b303a;--btn:#456aa3;--sol:#456aa3;--sel:#dfe7f5;--low:#f3deb0;--hint:#cfe8da;--bad:#c0444f}
+@media(prefers-color-scheme:dark){:root{--bg:#15181e;--fg:#dfe3ea;--card:#1e222a;--line:#3d4452;--thick:#9aa3b2;--btn:#3b5683;--sol:#8ea8d2;--sel:#2a3650;--low:#5a4a2a;--hint:#27483b;--bad:#e08a92}
+#prev{filter:brightness(.82)}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,-apple-system,"Noto Sans TC",sans-serif;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.5 system-ui,-apple-system,"Noto Sans TC",sans-serif;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom)}
 main{max-width:520px;margin:0 auto;padding:12px 0}
-h1{font-size:20px;margin:4px 0 8px}
-button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--line) inset}
-button.p{background:var(--acc);color:#fff;box-shadow:none}
+h1{font-size:22px;margin:4px 0 8px}
+button{font:inherit;font-size:17px;border:0;border-radius:12px;padding:12px 16px;min-height:46px;background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--line) inset}
+button.p{background:var(--btn);color:#fff;box-shadow:none}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-#pad button{flex:1;padding:12px 0;min-width:0}
-#msg{min-height:1.4em;margin:6px 0}
+.row button{flex:1 1 auto}
+#pad button{flex:1;padding:12px 0;min-width:0;font-size:21px}
+#msg{min-height:1.5em;margin:8px 0}
 #prev{width:100%;border-radius:8px;margin-bottom:10px}
 #grid{display:grid;grid-template-columns:repeat(9,1fr);width:100%;aspect-ratio:1;background:var(--card);border:2px solid var(--thick)}
 .c{display:flex;align-items:center;justify-content:center;font-size:clamp(18px,6vw,30px);border:.5px solid var(--line);user-select:none}
 .r3{border-right:2px solid var(--thick)}.b3{border-bottom:2px solid var(--thick)}
-.sel{background:var(--sel)}.low{background:#f59e0b66}.bad{color:#dc2626;font-weight:700}.sol{color:var(--acc)}
-.hint{background:#22c55e66}#hist{background:var(--card);border-radius:10px;padding:8px 12px}#hist .h{display:flex;gap:8px;align-items:center;padding:6px 0}#hist .h span{flex:1}
+.sel{background:var(--sel)}.low{background:var(--low)}.bad{color:var(--bad);font-weight:700}.sol{color:var(--sol)}.hint{background:var(--hint)}
+#hist{background:var(--card);border-radius:12px;padding:8px 12px}#hist .h{display:flex;gap:8px;align-items:center;padding:6px 0}#hist .h span{flex:1}
 </style>
 </head>
 <body>
