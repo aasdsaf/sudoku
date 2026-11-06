@@ -1,6 +1,6 @@
-const V='sudoku-v1';
+const V='sudoku-v2';
 self.addEventListener('install',e=>{self.skipWaiting();
-  e.waitUntil(caches.open(V).then(c=>c.addAll(['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'])))});
+  e.waitUntil(caches.open(V).then(c=>c.addAll(['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'].map(u=>new Request(u,{cache:'reload'})))))});
 self.addEventListener('activate',e=>e.waitUntil((async()=>{
   for(const k of await caches.keys())if(k!==V&&k!=='shared')await caches.delete(k);
   await clients.claim()})()));

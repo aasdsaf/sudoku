@@ -30,7 +30,7 @@ button.p{background:var(--acc);color:#fff;box-shadow:none}
 <body>
 <main>
 <h1>數獨解題</h1>
-<div class="row"><button class="p" id="pick">選擇截圖 / 拍照</button><input id="file" type="file" accept="image/*" hidden></div>
+<div class="row"><button class="p" id="pick">選擇截圖 / 拍照</button><button id="manual">手動框選</button><input id="file" type="file" accept="image/*" hidden></div>
 <div id="msg">選一張數獨截圖，或在相簿用「分享」傳進來。</div>
 <canvas id="prev" hidden></canvas>
 <div id="grid"></div>
@@ -110,59 +110,74 @@ $('#pick').onclick=()=>$('#file').click();
 $('#file').onchange=e=>e.target.files[0]&&loadBlob(e.target.files[0]);
 addEventListener('paste',e=>{const f=e.clipboardData&&e.clipboardData.files[0];if(f)loadBlob(f)});
 
-/* ---------- 偵測盤面（直線的等距格線擬合） ---------- */
-function strength(g,W,H,vert){
-  const n=vert?W:H,m=vert?H:W,out=new Int32Array(n);
+/* ---------- 偵測盤面（等距格線擬合） ---------- */
+function prof(g,W,H,vert){
+  const n=vert?W:H,m=vert?H:W,P=new Float64Array(n);
   for(let p=1;p<n-1;p++){
-    let best=0,cur=0,gap=0;
+    let s=0;
     for(let q=0;q<m;q++){
-      const a=vert?g[q*W+p-1]:g[(p-1)*W+q], b=vert?g[q*W+p+1]:g[(p+1)*W+q];
-      if(Math.abs(a-b)>40){cur+=1+gap;gap=0;if(cur>best)best=cur}
-      else if(cur&&++gap>2){cur=0;gap=0}
+      const d=Math.abs(vert?g[q*W+p-1]-g[q*W+p+1]:g[(p-1)*W+q]-g[(p+1)*W+q]);
+      if(d>6)s+=d>30?30:d;
     }
-    out[p]=best;
+    P[p]=s;
   }
-  return out;
+  return P;
 }
 function fit(P,smin,smax){
-  let best={sc:0,hit:0};
-  for(let s=smin;s<=smax;s++)for(let p=0;p+9*s<P.length;p++){
-    let sc=0,hit=0;
-    for(let k=0;k<10;k++){
-      let m=0;for(let d=-2;d<=2;d++){const t=P[p+k*s+d]||0;if(t>m)m=t}
-      sc+=Math.min(m,9*s)/(9*s); if(m>=.6*9*s)hit++;
-    }
-    if(sc>best.sc)best={sc,hit,p,s};
+  let best={sc:0},L=P.length;
+  for(let s=Math.max(8,smin);s<=smax;s++)for(let p=0;p+9*s<L;p++){
+    let sc=0;
+    for(let k=0;k<10;k++){let m=0;for(let d=-2;d<=2;d++){const t=P[p+k*s+d]||0;if(t>m)m=t}sc+=m}
+    if(sc>best.sc)best={sc,p,s};
   }
+  if(best.sc){let mid=0;for(let k=0;k<9;k++)mid+=P[best.p+k*best.s+(best.s>>1)];best.ratio=(best.sc/10)/(mid/9+1)}
   return best;
 }
 function findBoard(g,W,H){
-  const PX=strength(g,W,H,true),PY=strength(g,W,H,false);
-  let fx,fy;
+  const PX=prof(g,W,H,true),PY=prof(g,W,H,false);let fx,fy;
   if(W<=H){fx=fit(PX,Math.floor(W*.05),Math.floor(W/9));fy=fit(PY,fx.s-2,fx.s+2)}
   else{fy=fit(PY,Math.floor(H*.05),Math.floor(H/9));fx=fit(PX,fy.s-2,fy.s+2)}
-  if(fx.hit<7||fy.hit<7)return null;
+  if(!(fx.ratio>2&&fy.ratio>2))return null;
   return{x:fx.p,y:fy.p,s:(fx.s+fy.s)/2};
 }
 
 /* ---------- 辨識 ---------- */
+let img=null;
 async function getWorker(){
   if(worker)return worker;
   worker=await Tesseract.createWorker('eng');
   await worker.setParameters({tessedit_char_whitelist:'123456789',tessedit_pageseg_mode:'10'});
   return worker;
 }
+function drawBase(){$('#prev').getContext('2d').putImageData(img.base,0,0)}
 async function loadBlob(blob){
-  msg('讀取圖片…'); v.fill(0);solved=null;low.clear();sel=-1;render();
+  msg('讀取圖片…');
   const bmp=await createImageBitmap(blob), sc=Math.min(1,1200/Math.max(bmp.width,bmp.height));
   const W=Math.round(bmp.width*sc),H=Math.round(bmp.height*sc),cv=$('#prev');
   cv.width=W;cv.height=H;const x=cv.getContext('2d',{willReadFrequently:true});x.drawImage(bmp,0,0,W,H);
-  const px=x.getImageData(0,0,W,H).data,g=new Uint8Array(W*H);
+  const base=x.getImageData(0,0,W,H),px=base.data,g=new Uint8Array(W*H);
   for(let i=0;i<W*H;i++)g[i]=.299*px[i*4]+.587*px[i*4+1]+.114*px[i*4+2];
+  img={g,W,H,base,tap:[]};cv.hidden=false;
   msg('尋找九宮格…'); await new Promise(r=>setTimeout(r,30));
-  let box=findBoard(g,W,H),note='';
-  if(!box){const s=Math.min(W,H)/9;box={x:0,y:0,s};note='（沒找到格線，改用整張圖，請確認結果）'}
-  cv.hidden=false;x.strokeStyle='#ef4444';x.lineWidth=Math.max(3,W/200);x.strokeRect(box.x,box.y,box.s*9,box.s*9);
+  const box=findBoard(g,W,H);
+  if(box)return readBoard(box);
+  msg('沒自動找到九宮格。請在上方圖片依序點「九宮格左上角」和「右下角」。');
+}
+$('#prev').onclick=e=>{
+  if(!img)return;
+  const cv=e.target,r=cv.getBoundingClientRect(),x=cv.getContext('2d');
+  const pt=[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];
+  img.tap.push(pt);x.fillStyle='#ef4444';x.beginPath();x.arc(pt[0],pt[1],Math.max(5,cv.width/80),0,7);x.fill();
+  if(img.tap.length<2){msg('再點「九宮格右下角」');return}
+  const[[a,b],[c,d]]=img.tap;img.tap=[];const s=((c-a)+(d-b))/18;
+  if(s<8){drawBase();msg('位置不對，請重新點：先左上角，再右下角');return}
+  readBoard({x:a,y:b,s});
+};
+$('#manual').onclick=()=>{if(img){img.tap=[];drawBase();msg('請在上方圖片依序點九宮格的左上角和右下角')}};
+async function readBoard(box){
+  const{g,W,H}=img;
+  v.fill(0);solved=null;low.clear();sel=-1;render();drawBase();
+  const x=$('#prev').getContext('2d');x.strokeStyle='#ef4444';x.lineWidth=Math.max(3,W/200);x.strokeRect(box.x,box.y,box.s*9,box.s*9);
   const w=await getWorker(),cells=[];
   const t=document.createElement('canvas'),t2=document.createElement('canvas');t2.width=t2.height=72;
   for(let i=0;i<81;i++){
@@ -180,13 +195,13 @@ async function loadBlob(blob){
     t.width=t.height=m;t.getContext('2d').putImageData(bin,0,0);
     const c2=t2.getContext('2d');c2.fillStyle='#fff';c2.fillRect(0,0,72,72);c2.drawImage(t,12,12,48,48);
     cells.push([i,await w.recognize(t2)]);
-    msg(`辨識中… ${cells.length}`+note);
+    msg(`辨識中… ${cells.length}`);
   }
   for(const [i,res] of cells){
     const d=res.data.text.trim()[0];
     if(d&&d>='1'&&d<='9'){v[i]=+d;if(res.data.confidence<60)low.add(i)}else low.add(i);
   }
-  msg(`辨識完成，共 ${cells.length} 格有數字。橘色是不確定的，點格子再按數字可修正。`+note);render();
+  msg(`辨識完成，共 ${cells.length} 格有數字。橘色是不確定的，點格子再按數字可修正。框的位置不對可按「手動框選」重來。`);render();
 }
 
 /* ---------- 啟動 ---------- */
